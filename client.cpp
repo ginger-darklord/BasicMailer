@@ -17,7 +17,7 @@ int main(int argc, char **argv)
 {
     char buffer[BUF];
     struct sockaddr_in address;
-    int isQuit;
+    int isQuit = 0;
     int size;
 
     /////////////////
