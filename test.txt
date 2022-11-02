@@ -1,2 +1,0 @@
-threads are faster than forks, dont mix them
-sachen die man in einer funktion verkapstelt immer mit threads,

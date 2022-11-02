@@ -65,19 +65,21 @@ int main(int argc, char **argv)
     }
 
     do{
+        std::cout << "Server Commands : SEND, LIST, READ, DEL, QUIT. Type them in lowercase" << std::endl;
         std::cout << ">> " << std::endl;
         if(fgets(buffer, BUF, stdin) != NULL) {
             int size = strlen(buffer);
             isQuit = strcmp(buffer, "quit") == 0;
-
-            /////////////
-            //SEND DATA//
-            if(send(createSocket, buffer, size, 0) == -1) {
-                //just because send was successfully completed does not
-                //mean message was received, so this looks if there are
-                //locally-detected errors
-                std::cerr << "Sending Error" << std::endl;
-                break;
+            if(strcmp(buffer,"send") == 0) {
+                /////////////
+                //SEND DATA//
+                if(send(createSocket, buffer, size, 0) == -1) {
+                    //just because send was successfully completed does not
+                    //mean message was received, so this looks if there are
+                    //locally-detected errors
+                    std::cerr << "Sending Error" << std::endl;
+                    break;
+                }
             }
 
             //////////////////////////////////////////////////////////////////////
@@ -94,7 +96,7 @@ int main(int argc, char **argv)
          //
 
             size = recv(createSocket,buffer, BUF -1, 0);
-            if(size = -1) {
+            if(size == -1) {
                 if(size == -1) {
                     std::cerr << "Message was not received - Receiving Error" << std::endl;
                     break;
@@ -130,4 +132,3 @@ int main(int argc, char **argv)
 
     return 0;
 }
-

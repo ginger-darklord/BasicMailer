@@ -73,13 +73,11 @@ void *clientCommunication(void *data)
 
 void signalHandler(int sig)
 {
-    int abortRequested = 0;
     int newSocket = -1;
     int createSocket = -1;
     if(sig == SIGINT) {
         //ignore error
         std::cerr << "abort Requested... " << std::endl;
-        abortRequested = 1;
 
         if(newSocket != -1) {
             if(shutdown(newSocket, SHUT_RDWR) == -1) {
@@ -110,11 +108,10 @@ void signalHandler(int sig)
 //////////////////////////////////
 
 
-int main(int argc, char argv[]) 
+int main(int argc, char **argv) 
 {
     socklen_t  addrlen;
     struct sockaddr_in address, clientAddress;
-    //why do i need it???? Cause it is just a reused value?
     int reuseValue = 1;
     int abortRequested = 0;
 
@@ -136,7 +133,6 @@ int main(int argc, char argv[])
 
     //////////////////////
     //SET SOCKET OPTIONS//
-    //for multiple clients
     if(setsockopt(createSocket, SOL_SOCKET, SO_REUSEADDR, &reuseValue,sizeof(reuseValue)) == -1) {//i have a feeling this is wrong
         std::cerr << "Can't manipulate socket options??? - reuseAddr" << std::endl;
         return -5;
