@@ -7,34 +7,49 @@
 #include <string>
 #include <arpa/inet.h>
 #include <signal.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <fstream>
+#include <dirent.h>
+#include <vector>
+#include <filesystem>
+#include <chrono>
+#include <ctime>
+
+namespace fs = std::filesystem;
 
 /////////////////////////////
-#define BUF 4069
+#define BUF 4096
 #define PORT 6543
 /////////////////////////////
+int abortRequested = 0;
+int createSocket = -1;
+int newSocket = -1;
+//////////////////////////////
+
 void *clientCommunication(void *data) 
 {
     char buffer[BUF];
-    int abortRequested = 0;
-    //has to be pointer so new socket address can be given to clientCommunictaion as parameter//
+    int size;
     int *currentSocket = (int *)data;
 
-    ////////////////////////
+
+///////////////////////////////////////////////////////////////////////////
     //SEND WELCOME MESSAGE//
     strcpy(buffer, "Welcome to the Server!\nPlease enter your commands...\n");
     if(send(*currentSocket, buffer, strlen(buffer), 0) == -1) {
-        std::cerr << "Sending welcoming message failed" << std::endl;
+        std::cerr << "Sending welcoming message failed";
         return NULL;
     }
 
     do
     {
-        ///////////
+///////////////////////////////////////////////////////////////////////////////////////
         //RECEIVE//
-        int size = recv(*currentSocket, buffer, BUF -1, 0);
+        size = recv(*currentSocket, buffer, BUF -1, 0);
         if(size == -1) {
             if(abortRequested) {
-                std::cerr << "Receiving Error after aborted" << std::endl;
+                std::cerr << "Receiving Error after aborted";
             }
             else{
                 std::cerr << "Received Error" << std::endl;
@@ -42,18 +57,79 @@ void *clientCommunication(void *data)
             break;
         }
         if(size == 0) {
-            std::cerr << "Client closed remote socket" << std::endl;
+            std::cerr << "Client closed remote socket";
             break;
+        }
+
+        // remove ugly debug message, because of the sent newline of client
+        if (buffer[size - 2] == '\r' && buffer[size - 1] == '\n')
+        {
+            size -= 2;
+        }
+        else if (buffer[size - 1] == '\n')
+        {
+            --size;
         }
 
         buffer[size] = '\0';
         std::cout << "Message received: " << buffer << std::endl;
-        if(send(*currentSocket, "OK\n", 3, 0) == -1) {
-            std::cerr << "Sending an Answer failed" << std::endl;
-            return NULL;
+
+        std::stringstream str(buffer);
+        std::string line;
+        std::vector<std::string> msg;
+
+        while(std::getline(str, line, '\n')) {
+            msg.push_back(line);
         }
 
-    } while (strcmp(buffer, "quit") != 0 && !abortRequested);
+////////////////////////
+        //SEND//
+        if(msg.at(0).compare("SEND") == 0) {
+            //creates subfolder in directory with name of receiver//
+            fs::create_directory("mailspooler/" + msg.at(2));
+            //makes the filename the time it was sent//
+            auto now = std::chrono::system_clock::now();
+            auto timeT = std::chrono::system_clock::to_time_t(now);
+            char* time = std::ctime(&timeT);
+            time[strlen(time) -1] = '\0';
+            std::ofstream file("mailspooler/" + msg.at(2) + "/" + time);
+            file << msg.at(1) << std::endl << msg.at(3) << std::endl << msg.at(4);
+            file.close();
+        } 
+
+////////////////////
+        //LIST//
+        if(msg.at(0).compare("LIST") == 0) {
+            if(msg.at(1).compare(fs::path("mailspooler/" + msg.at(1)))) {
+                std::ifstream infile;
+                infile.open("mailspooler/" + msg.at(1));
+                if(infile.is_open()) {
+                    //doesnt go into while//
+                    while(std::getline(infile, line, '\n')) {
+                        std::cout << line << std::endl;
+                    }
+                }
+            }else {
+                std::cout << "User was not found in the directory!" << std::endl;
+            }
+        }
+
+        //empties the buffer of the client messages and writes an OK in it//
+        memset(buffer, 0, BUF);
+        strcat(buffer, "OK");
+
+        if(send(*currentSocket, buffer, BUF, 0) == -1) {
+            //just because send was successfully completed does not
+            //mean message was received, so this looks if there are
+            //locally-detected errors
+            memset(buffer, 0, BUF);
+            strcat(buffer, "ERR");
+            send(*currentSocket, buffer, BUF, 0);
+            std::cerr << "Sending local Error" << std::endl;
+            break;
+        }
+
+    } while (strcmp(buffer, "QUIT") != 0 && !abortRequested);
     
     //closes/frees the descriptor if its not already//
     if(*currentSocket == -1) {
@@ -78,6 +154,7 @@ void signalHandler(int sig)
     if(sig == SIGINT) {
         //ignore error
         std::cerr << "abort Requested... " << std::endl;
+        exit(0);
 
         if(newSocket != -1) {
             if(shutdown(newSocket, SHUT_RDWR) == -1) {
@@ -108,59 +185,59 @@ void signalHandler(int sig)
 //////////////////////////////////
 
 
-int main(int argc, char **argv) 
+int main() 
 {
     socklen_t  addrlen;
     struct sockaddr_in address, clientAddress;
     int reuseValue = 1;
-    int abortRequested = 0;
 
-
-    //////////////////
+//////////////////////////////////////////////////////////////////////////
     //SIGNAL HANDLER//
     if(signal(SIGINT, signalHandler) == SIG_ERR) {
-        std::cerr << "Signal can not be registered" << std::endl;
+        std::cerr << "Signal can not be registered";
         return -7;
     }
 
-    ///////////////////
+//////////////////////////////////////////////////////////////////////////
     //CREATE A SOCKET//
     int createSocket = socket(AF_INET, SOCK_STREAM, 0);
     if(createSocket == -1) {
-        std::cerr << "Can't create a socket" << std::endl;
+        std::cerr << "Can't create a socket";
         return -1;
     }
 
-    //////////////////////
+////////////////////////////////////////////////////////////////////////
     //SET SOCKET OPTIONS//
-    if(setsockopt(createSocket, SOL_SOCKET, SO_REUSEADDR, &reuseValue,sizeof(reuseValue)) == -1) {//i have a feeling this is wrong
-        std::cerr << "Can't manipulate socket options??? - reuseAddr" << std::endl;
+    if(setsockopt(createSocket, SOL_SOCKET, SO_REUSEADDR, &reuseValue, sizeof(reuseValue)) == -1) {//i have a feeling this is wrong
+        std::cerr << "Set socket options - reuseAddr";
         return -5;
     }
     if(setsockopt(createSocket, SOL_SOCKET, SO_REUSEPORT, &reuseValue,sizeof(reuseValue)) == -1) {
-        std::cerr << "Can't manipulate socket options??? - reusePort" << std::endl;
+        std::cerr << "Set socket options - reusePort";
         return -6;
     }
 
-    ////////////////
+/////////////////////////////////////////////////////////////////////
     //INIT ADDRESS//
     memset(&address ,0 ,sizeof(address));
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(PORT); //htons(host to network shorts) flips the bits and converts them from whole numbers to numbers networks can understand
+    //htons(host to network shorts) flips the bits and converts them from whole numbers
+    //to numbers networks can understand
+    address.sin_port = htons(PORT); 
     
 
-    /////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
     //ASSIGN AN ADDRESS WITH PORT TO SOCKET//
     if(bind(createSocket, (struct sockaddr*)&address, sizeof(address)) == -1) {
         std::cerr << "Can't bind to a socket!" << std::endl;
         return -2;
     }
 
-    /////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////
     //ALLOW CONNECTION ESTABLISHING//
     //mark socket for listening in
-    if(listen(createSocket, 6) == -1) {
+    if(listen(createSocket, 5) == -1) {
         std::cerr << "Can't listen!" << std::endl;
         return -3;
     }
@@ -168,34 +245,34 @@ int main(int argc, char **argv)
     while(!abortRequested) {
         std::cout << "Waiting for connections..." << std::endl;
 
-        ///////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////
         //ACCEPT CONNECTION SETUP//
         addrlen = sizeof(struct sockaddr_in);
-        int newSocket = accept(createSocket, (struct sockaddr*)&clientAddress, &addrlen);
+        newSocket = accept(createSocket, (struct sockaddr*)&clientAddress, &addrlen);
         if(newSocket == -1) {
             if(abortRequested) {
                 std::cerr << "Accept error after it was aborted" << std::endl;
             }
             else {
-                std::cerr << "Accept error" << std::endl;
+                std::cerr << "Accept error";
             }
             break;
         }
 
-        ////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
         //START CLIENT//
-        std::cerr << "Client connected from " << inet_ntoa(clientAddress.sin_addr) << ":" << ntohs(clientAddress.sin_port) << "..." << std::endl;
+        std::cout << "Client connected from " << inet_ntoa(clientAddress.sin_addr) << ":" << ntohs(clientAddress.sin_port) << "..." << std::endl;
         clientCommunication(&newSocket);
-        newSocket = -1; //why??? -1 is an error no?
+        newSocket = -1;
     }
 
     //frees the descriptor//
     if(createSocket != -1) {
         if(shutdown(createSocket, SHUT_RDWR) == -1) {
-            std::cerr << "Shutdown createSocket" << std::endl;
+            std::cerr << "Shutdown createSocket";
         }
         if(close(createSocket) == -1) {
-            std::cerr << "Close createSocket" << std::endl;
+            std::cerr << "Close createSocket";
         }
 
         createSocket = -1;

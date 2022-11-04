@@ -22,7 +22,7 @@ CFLAGS=-g -Wall -Wextra -O -std=c++2a -I /usr/local/include/gtest/ -pthread
 GTEST=/usr/local/lib/libgtest.a
 
 rebuild: clean all
-all: server client
+all: twmailer-server twmailer-client
 
 clean:
 	clear
@@ -34,8 +34,8 @@ myclient.o: client.cpp
 myserver.o: main.cpp
 	${CC} ${CFLAGS} -o myserver.o main.cpp -c 
 
-server: myserver.o
-	${CC} ${CFLAGS} -o server myserver.o
+twmailer-server: myserver.o
+	${CC} ${CFLAGS} -o twmailer-server myserver.o
 
-client: myclient.o
-	${CC} ${CFLAGS} -o client myclient.o
+twmailer-client: myclient.o
+	${CC} ${CFLAGS} -o twmailer-client myclient.o
