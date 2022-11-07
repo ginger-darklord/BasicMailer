@@ -14,7 +14,7 @@
 
 //////////////////////////
 #define BUF 4096
-#define PORT 6543
+int PORT;
 //////////////////////////
 
 int main(int argc, char **argv)
@@ -36,13 +36,16 @@ int main(int argc, char **argv)
     //INIT ADDRESS//
     memset(&address, 0, sizeof(address));
     address.sin_family = AF_INET;
-    address.sin_port = htons(PORT);
 
     if(argc < 2) {
-        inet_aton("127.0.0.1", &address.sin_addr);
+        std::cerr << "More arguments needed.";
     }
     else{
+        //assign IP-address
         inet_aton(argv[1], &address.sin_addr);
+        //assign PORT number
+        PORT = atoi(argv[2]);
+        address.sin_port = htons(PORT);
     }
 
 ////////////////////////////////////////////////////////////////////////////////////////

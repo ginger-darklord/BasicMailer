@@ -15,19 +15,20 @@
 #include <filesystem>
 #include <chrono>
 #include <ctime>
+#include <sys/stat.h>
 
 namespace fs = std::filesystem;
 
 /////////////////////////////
 #define BUF 4096
-#define PORT 6543
+int PORT;
 /////////////////////////////
 int abortRequested = 0;
 int createSocket = -1;
 int newSocket = -1;
 //////////////////////////////
 
-void *clientCommunication(void *data) 
+void *clientCommunication(void *data, char folder[30]) 
 {
     char buffer[BUF];
     int size;
@@ -86,7 +87,7 @@ void *clientCommunication(void *data)
         //SEND//
         if(msg.at(0).compare("SEND") == 0) {
             //creates subfolder in directory with name of receiver//
-            fs::create_directory("mailspooler/" + msg.at(2));
+            fs::create_directory(folder + msg.at(2));
             //makes the filename the time it was sent//
             auto now = std::chrono::system_clock::now();
             auto timeT = std::chrono::system_clock::to_time_t(now);
@@ -185,11 +186,36 @@ void signalHandler(int sig)
 //////////////////////////////////
 
 
-int main() 
+int main(int argc, char** argv) 
 {
     socklen_t  addrlen;
     struct sockaddr_in address, clientAddress;
     int reuseValue = 1;
+//////////////////////////////////////
+//
+
+    if(argc < 2) {
+        std::cerr << "More arguments needed.";
+    }
+    else{
+        //assign a PORT number//
+        PORT = atoi(argv[1]);
+
+        //checking if folder exists//
+        DIR* folder = opendir(argv[2]);
+
+        if(!folder) {
+            //create directory//
+            int exists = mkdir(argv[2], 0777);
+            DIR* folder = opendir(argv[2]);
+            if(!exists) {
+                std::cout << "Directory created" << std::endl;
+            } else {
+                std::cerr << "Unable to create directory" << std::endl;
+                exit(1);
+            } 
+        }
+    }
 
 //////////////////////////////////////////////////////////////////////////
     //SIGNAL HANDLER//
@@ -262,7 +288,7 @@ int main()
 ///////////////////////////////////////////////////////////////////////////////////////////////
         //START CLIENT//
         std::cout << "Client connected from " << inet_ntoa(clientAddress.sin_addr) << ":" << ntohs(clientAddress.sin_port) << "..." << std::endl;
-        clientCommunication(&newSocket);
+        clientCommunication(&newSocket, argv[2]);//for directory
         newSocket = -1;
     }
 
