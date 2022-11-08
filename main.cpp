@@ -93,7 +93,7 @@ void *clientCommunication(void *data, char folder[30])
             auto timeT = std::chrono::system_clock::to_time_t(now);
             char* time = std::ctime(&timeT);
             time[strlen(time) -1] = '\0';
-            std::ofstream file("mailspooler/" + msg.at(2) + "/" + time);
+            std::ofstream file(folder + msg.at(2) + "/" + time);
             file << msg.at(1) << std::endl << msg.at(3) << std::endl << msg.at(4);
             file.close();
         } 
@@ -101,11 +101,13 @@ void *clientCommunication(void *data, char folder[30])
 ////////////////////
         //LIST//
         if(msg.at(0).compare("LIST") == 0) {
-            if(msg.at(1).compare(fs::path("mailspooler/" + msg.at(1)))) {
+            //i dont think path is right//
+            if(msg.at(1).compare(fs::path(folder+ msg.at(1)))) {
                 std::ifstream infile;
-                infile.open("mailspooler/" + msg.at(1));
+                infile.open(folder + msg.at(1));
                 if(infile.is_open()) {
                     //doesnt go into while//
+                    //cause getline if for input not output?//
                     while(std::getline(infile, line, '\n')) {
                         std::cout << line << std::endl;
                     }
