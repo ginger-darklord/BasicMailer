@@ -61,10 +61,10 @@ int main(int argc, char **argv)
     //RECEIVE DATA//
     size = recv(createSocket, buffer, BUF - 1, 0);
     if(size == -1) {
-        std::cerr << "Could not receive data";
+        std::cerr << "Could not receive data" << std::endl;
     }
     else if(size == 0) {
-        std::cerr << "The Server closed remote Socket";
+        std::cout << "The Server closed remote Socket" << std::endl;
     }
     else{
         buffer[size] = '\0';
@@ -72,6 +72,7 @@ int main(int argc, char **argv)
     }
 
     std::string command;
+    
     do{
         memset(buffer, 0, BUF);
         std::cout << ">> ";

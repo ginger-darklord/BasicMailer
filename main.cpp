@@ -28,7 +28,7 @@ int createSocket = -1;
 int newSocket = -1;
 //////////////////////////////
 
-void *clientCommunication(void *data, char folder[30]) 
+void *clientCommunication(void *data, std::string folder) 
 {
     char buffer[BUF];
     int size;
@@ -50,7 +50,7 @@ void *clientCommunication(void *data, char folder[30])
         size = recv(*currentSocket, buffer, BUF -1, 0);
         if(size == -1) {
             if(abortRequested) {
-                std::cerr << "Receiving Error after aborted";
+                std::cerr << "Receiving Error after aborted" << std::endl;
             }
             else{
                 std::cerr << "Received Error" << std::endl;
@@ -58,7 +58,7 @@ void *clientCommunication(void *data, char folder[30])
             break;
         }
         if(size == 0) {
-            std::cerr << "Client closed remote socket";
+            std::cerr << "Client closed remote socket" << std::endl;
             break;
         }
 
@@ -86,16 +86,44 @@ void *clientCommunication(void *data, char folder[30])
 ////////////////////////
         //SEND//
         if(msg.at(0).compare("SEND") == 0) {
+            //creates path object for mailspooler directory//
+            fs::path current = fs::current_path();
+            fs::path mailspooler = fs::path(current.string() + "/" + folder);
+            try{
+                fs::current_path(mailspooler);
+            }
+            catch(...){
+                std::cerr << "An error has occured with the filesystem" << std::endl;
+            }
             //creates subfolder in directory with name of receiver//
-            fs::create_directory(folder + msg.at(2));
+            fs::create_directory(msg.at(2));
+
+            //changing to users directory
+            try{
+                fs::current_path(mailspooler.string() + "/"  + msg.at(2));
+            }
+            catch(...){
+                std::cerr << "An error has occured with the filesystem" << std::endl;
+            }
+            
             //makes the filename the time it was sent//
+            using namespace std::chrono;
             auto now = std::chrono::system_clock::now();
             auto timeT = std::chrono::system_clock::to_time_t(now);
-            char* time = std::ctime(&timeT);
-            time[strlen(time) -1] = '\0';
-            std::ofstream file("mailspooler/" + msg.at(2) + "/" + time);
-            file << msg.at(1) << std::endl << msg.at(3) << std::endl << msg.at(4);
-            file.close();
+            std::string time = std::ctime(&timeT); 
+
+            //create file
+            std::ofstream user_msg(time + ".txt");
+            user_msg << "Message from: " << msg.at(1) << std::endl << "Subject: " << msg.at(3) << std::endl << "Message: " << msg.at(4);
+            user_msg.close();
+
+            //changing back to base directory
+            try{
+                fs::current_path(current);
+            }
+            catch(...){
+                std::cerr << "An error has occured with the filesystem" << std::endl;
+            }
         } 
 
 ////////////////////
@@ -204,10 +232,9 @@ int main(int argc, char** argv)
         //checking if folder exists//
         DIR* folder = opendir(argv[2]);
 
-        if(!folder) {
+        if(folder == NULL) {
             //create directory//
             int exists = mkdir(argv[2], 0777);
-            DIR* folder = opendir(argv[2]);
             if(!exists) {
                 std::cout << "Directory created" << std::endl;
             } else {
@@ -288,7 +315,8 @@ int main(int argc, char** argv)
 ///////////////////////////////////////////////////////////////////////////////////////////////
         //START CLIENT//
         std::cout << "Client connected from " << inet_ntoa(clientAddress.sin_addr) << ":" << ntohs(clientAddress.sin_port) << "..." << std::endl;
-        clientCommunication(&newSocket, argv[2]);//for directory
+        std::string foldername(argv[2]);
+        clientCommunication(&newSocket, foldername);//for directory
         newSocket = -1;
     }
 
