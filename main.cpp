@@ -63,16 +63,16 @@ void *clientCommunication(void *data, std::string folder)
         }
 
         // remove ugly debug message, because of the sent newline of client
-        if (buffer[size - 2] == '\r' && buffer[size - 1] == '\n')
+        /*if (buffer[size - 2] == '\r' && buffer[size - 1] == '\n')
         {
             size -= 2;
         }
         else if (buffer[size - 1] == '\n')
         {
             --size;
-        }
+        } */
 
-        buffer[size] = '\0';
+        //buffer[size] = '\0';
         std::cout << "Message received: " << buffer << std::endl;
 
         std::stringstream str(buffer);
@@ -157,6 +157,11 @@ void *clientCommunication(void *data, std::string folder)
             std::cerr << "Sending local Error" << std::endl;
             break;
         }
+        /*if (send(*currentSocket, "OK", 3, 0) == -1)
+        {
+            perror("send answer failed");
+            return NULL;
+        }*/
 
     } while (strcmp(buffer, "QUIT") != 0 && !abortRequested);
     

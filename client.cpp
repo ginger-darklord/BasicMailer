@@ -169,7 +169,10 @@ int main(int argc, char **argv)
             std::cout << "Server closed the Remote Socket" << std::endl;
             break;
         }
-        else{
+        else {
+            std::cout << "<< " << buffer << std::endl;
+        }
+        /*else{
             int size = strlen(buffer);
 
             //removes new line signs from string at the end
@@ -190,7 +193,8 @@ int main(int argc, char **argv)
                 std::cerr << "Server error occured, abort";
                 break;
             }
-        }
+        }*/
+        
     } while(!isQuit);
 
     /////////////////////////
